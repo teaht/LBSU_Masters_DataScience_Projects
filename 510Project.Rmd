@@ -1,0 +1,393 @@
+---
+title: "510 Project"
+author: "Teah Thies"
+date: "2023-12-02"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidyr)
+library(car)
+library(caret)
+library(glmnet)
+library(dplyr)
+library(readr)
+library(rsample)
+library(tidymodels)
+library(ggplot2)
+library(Matrix)
+library(MASS)
+library(randomForest)
+library(pROC)
+```
+
+
+```{r Load Data and get rid of null values}
+df <- read_csv("~/Desktop/data.csv", show_col_types = FALSE) %>% na.omit()
+```
+
+```{r Count Observations}
+nrow(df) 
+```
+
+```{r Missing Values}
+sum(is.na(df))
+```
+
+
+```{r Descriptive Statistics}
+
+#################################################################
+# OUTCOME
+#################################################################
+# distribution of outcome
+response_matrix <- df$Y %>% as.matrix() # Y is now V1 in response_matrix
+count_table <- table(response_matrix)
+# pie chart
+pie(count_table, labels=c("Outcome 0", "Outcome 1"), col=c("lightblue", "lightgreen"), main="Binary Outcome Distribution")
+# Get the ratio
+ratio <- sum(response == 0) / length(response_matrix)
+print(ratio) # 96% of the companies did not go bankrupt
+
+
+#################################################################
+# DATAFRAME FOR INPUT AND RESPONSE
+#################################################################
+input_matrix <- df %>% dplyr::select(-Y) %>% as.matrix()
+input_df <- data.frame(input_matrix)
+response_df <- data.frame(response_matrix) # Y is now called response
+
+
+#################################################################
+# INPUTS
+#################################################################
+melted_data <- input_df %>%
+  gather(key = "Variable", value = "Value")
+input_plot <- ggplot(melted_data, aes(x = Variable, y = Value, fill = Variable)) +
+  geom_violin(scale = "width", trim = FALSE) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), legend.position = "none") +
+  labs(title = "Distribution of Features", y = "Feature Value")
+
+ggsave("output_plot.pdf", plot = input_plot)
+
+## see only ratio observations
+ratio_data <- subset(melted_data, Value >= 0 & Value <= 1)
+ratio_plot <- ggplot(ratio_data, aes(x = Variable, y = Value, fill = Variable)) +
+  geom_violin(scale = "width", trim = FALSE) +
+  scale_fill_brewer(palette = "Set3") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(), legend.position = "none") +
+  labs(title = "Distribution of Features", y = "Feature Value")
+ggsave("output_plot.pdf", plot = ratio_plot)
+
+#################################################################
+# come back after minimizing features
+#################################################################
+# distribution of input features 
+
+
+# Reshape the data for ggplot2
+```
+
+
+```{r Default Model}
+#################################################################
+# with all features Logistic Regression
+#################################################################
+generic <- glm(response_df$response ~ ., input_df, family = "binomial")
+summary(generic) # some coefficients are NA (remove them)
+
+#################################################################
+# DATAFRAME FOR INPUT_MATRIX2
+#################################################################
+# values that are too close to zero can also mess with model
+nearZeroVar(input_df2)       # remove input 82, 85, and 94
+
+# remove coefficients that are NA (Assuming these coefficients are messing with out model)
+input_matrix2 <- df %>% dplyr::select(-Y, -NetFlag, -CurrentLiability...78, -CurrentLiability2, -Assets, -Flag) %>% as.matrix()
+
+# new dataframe
+input_df2 <- data.frame(input_matrix2)
+
+# new model without NAs and close to zero coeffients
+generic2 <- glm(response_df$response ~ ., input_df2, family = "binomial")
+summary(generic2) 
+
+
+
+
+#################################################################
+# Check for Multicollinearity
+#################################################################
+vif_val <- vif(generic2)
+vif_val
+
+high_vif <- names(vif_val[vif_val > 5])  # Set a threshold (e.g., 5)
+high_vif
+
+# remove coefficients that have VIF value > 5
+remove_cols <- c("Y", "NetFlag", "CurrentLiability...78", "CurrentLiability2", "Assets", "Flag", "RoaC", "RoaA", "RoaB", "GrossMargin", "RealizedGrossMargin", "ProfitRate", "PreTaxInterestRate", "AfterTaxtInterestRate", "NonIndustryIncome", "ContInterestRate", "AValPerShare", "CValPerShare", "EPS", "IncomePerShare...23", "IncomePerShare...24", "PostTaxGrowthRate", "NetProfitRate", "DebtRatio", "InterestCost", "Liability", "OpProfit", "NetProfitPreTax", "Inventory", "CurrentLiabilityAssets", "LiabilityFunds", "CurrentLiability...65", "WorkingCapital...66", "CurrentLiability...67", "CapitalTurnover", "EquityLTL", "CFO", "GrosstoSales", "IncometoEquity", "LiabilitytoEquity")
+
+input_matrix3 <- df %>% dplyr::select(-remove_cols) %>% as.matrix()
+
+# new dataframe
+input_df3 <- data.frame(input_matrix3)
+
+# new model without NAs and close to zero coeffients
+generic3 <- glm(response_df$response ~ ., input_df3, family = "binomial")
+summary(generic3) 
+
+```
+
+
+
+```{r}
+vif_val_4 <- vif(generic2)
+vif_val_4
+
+high_vif_4 <- names(vif_val_4[vif_val_4 > 4])  # Set a threshold (e.g., 4)
+high_vif_4
+
+# remove coefficients that have VIF value > 4
+remove_cols_4 <- c("Y", "NetFlag", "CurrentLiability...78", "CurrentLiability2", "Assets", "Flag", "RoaC", "RoaA", "RoaB", "GrossMargin", "RealizedGrossMargin", "ProfitRate", "PreTaxInterestRate", "AfterTaxtInterestRate", "NonIndustryIncome", "ContInterestRate", "BValPerShare", "AValPerShare", "CValPerShare", "EPS", "IncomePerShare...23", "IncomePerShare...24", "PostTaxGrowthRate", "NetProfitRate", "DebtRatio", "InterestCost", "Liability", "OpProfit", "NetProfitPreTax", "Inventory", "NetWorthTurnover", "CurrentLiabilityAssets", "LiabilityFunds", "CurrentLiability...65", "WorkingCapital...66", "CurrentLiability...67", "CapitalTurnover", "EquityLTL", "CashtoAssets", "CFO", "GrosstoSales", "IncometoEquity", "LiabilitytoEquity")
+
+input_matrix4 <- df %>% dplyr::select(-remove_cols_4) %>% as.matrix()
+
+# new dataframe
+input_df4 <- data.frame(input_matrix4)
+ncol(input_df4) #53
+
+# new model 
+generic4 <- glm(response_df$response ~ ., input_df4, family = "binomial")
+summary(generic4) 
+```
+
+
+
+```{r More Modifications}
+# Print only the significant coefficients (assuming a significance level of 0.05)
+summary_table <- summary(generic4)
+
+significant_coefs <- summary_table$coefficients[summary_table$coefficients[, "Pr(>|z|)"] < 0.05, ]
+print(significant_coefs)
+
+## make model with only significant variables
+## good for interpretation, not as goo for prediction
+# remove coefficients that have VIF value > 4
+significant_cols <- c("CashFlowRate", "CashReinvest", "TotalNetWorth", "AssetTurnover...46", "FixedAssets...50", "WorkingCapital...55", "CurrentAssets", "Cash", "Earnings", "IncometoExpense", "CashtoSale", "FlowtoLiability", "NetIncome", "EquitytoLiability")
+
+input_matrix_signif <- df %>% dplyr::select(significant_cols) %>% as.matrix()
+
+# new dataframe
+input_matrix_signif_df <- data.frame(input_matrix_signif)
+ncol(input_matrix_signif_df) #14
+
+# new model without NAs and close to zero coefficients
+generic5 <- glm(response_df$response ~ ., input_matrix_signif_df, family = "binomial")
+summary(generic5) 
+# all still significant at high level
+# we will use this for interpretation
+
+
+```
+
+```{r Interpretation}
+# Extract coefficients from the model
+coefficients <- coef(generic5)
+
+# Find the coefficient for the variable of interest
+coefficient_of_interest <- coefficients["NetIncome"]
+
+# Exponentiate the coefficient to get the odds ratio
+exp(coefficient_of_interest)
+
+```
+
+
+
+
+
+
+```{r Train and Test}
+# The primary purpose of splitting data is to evaluate the performance of a model on unseen data. By training a model on one subset of the data (the training set) and testing it on another subset (the testing set), you simulate how the model will perform on new, unseen data.
+set.seed(123)
+
+# we will put our significant model data into training and testing
+#input
+sample_index_input <- sample(nrow(input_matrix_signif_df), 0.9 * nrow(input_matrix_signif_df))
+
+train_input <- input_matrix_signif_df[sample_index_input, ]
+test_input <- input_matrix_signif_df[-sample_index_input, ]
+
+#output
+sample_index_output <- sample(nrow(response_df), 0.9 * nrow(response_df))
+
+train_output <- response_df[sample_index_output, ]
+test_output <- response_df[-sample_index_output, ]
+```
+
+
+```{r Train Model Significant}
+## make model with only significant variables
+## good for interpretation, not as goo for prediction
+# remove coefficients that have VIF value > 4
+significant_cols <- c("CashFlowRate", "CashReinvest", "TotalNetWorth", "AssetTurnover...46", "FixedAssets...50", "WorkingCapital...55", "CurrentAssets", "Cash", "Earnings", "IncometoExpense", "CashtoSale", "FlowtoLiability", "NetIncome", "EquitytoLiability")
+
+input_train_signif <- train_input %>% dplyr::select(significant_cols) %>% as.matrix()
+
+# new dataframe
+input_train_signif_df <- data.frame(input_train_signif)
+ncol(input_train_signif_df) #14
+
+train_output_df <- data.frame(train_output)
+View(train_output_df)
+
+# new model without NAs and close to zero coefficients
+train_sig <- glm(train_output_df$train_output ~ ., input_train_signif_df, family = "binomial")
+summary(train_sig) 
+# all still significant at high level
+# we will use this for interpretation
+
+```
+
+
+
+
+```{r Ridge}
+# Convert data to matrix format if needed
+train_input_matrix <- as.matrix(train_input)
+
+# Ensure train_output is a factor for binary classification
+train_output_factor <- as.matrix(train_output)
+
+# find best lambda
+model_rid <- cv.glmnet(train_input_matrix, train_output_factor, alpha = 0, family = "binomial", type.measure = "mse", nfolds = 20)
+
+plot(model_rid, xvar="lambda")
+
+model_rid$lambda.min         # 5.480619
+```
+
+
+```{r Confusion Ridge}
+# Convert data to matrix format if needed
+test_input_matrix <- as.matrix(test_input)
+
+# Ensure train_output is a factor for binary classification
+test_output_factor <- as.matrix(test_output)
+
+pred <- predict(model_rid, newx = test_input_matrix, type = "response", s = model_rid$lambda.min)
+conf_matrix <- confusionMatrix(as.factor(ifelse(pred > 0.5, 1, 0)),as.factor(test_output))
+```
+
+
+
+
+
+
+
+
+
+
+
+generic - default 
+generic2 - without NA and close to zero coefficients 
+generic3 - don’t include 
+generic4 - VIF > 4
+generic5 - significant
+model_rid
+```{r AIC values}
+AIC(generic)         # 15682.77
+AIC(generic2)        # 35504.78
+AIC(generic3)        # 1293.822
+AIC(generic4)        # 1306.644
+AIC(generic5)        # 1268.61
+```
+
+
+
+
+
+generic - default 
+generic2 - without NA and close to zero coefficients 
+generic3 - don’t include 
+generic4 - VIF > 4
+generic5 - significant
+model_rid
+```{r ROC curve}
+# Obtain predicted probabilities
+predicted_probabilities <- predict(generic, type = "response")
+# Create a ROC curve (ONLY NEED ONE FOR ALL ROC)
+roc_curve <- roc(response_df$response, predicted_probabilities)
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+# Calculate and print the AUC value
+auc(roc_curve)  # 0.5355
+
+# Obtain predicted probabilities
+predicted_probabilities <- predict(generic2, type = "response")
+roc_curve <- roc(response_df$response, predicted_probabilities)
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+# Calculate and print the AUC value
+auc(roc_curve)  # 0.8113
+
+# Obtain predicted probabilities
+predicted_probabilities <- predict(generic3, type = "response")
+roc_curve <- roc(response_df$response, predicted_probabilities)
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+# Calculate and print the AUC value
+auc(roc_curve)  # 0.9334
+
+# Obtain predicted probabilities
+predicted_probabilities <- predict(generic4, type = "response")
+roc_curve <- roc(response_df$response, predicted_probabilities)
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+# Calculate and print the AUC value
+auc(roc_curve)  # 0.9316
+
+# Obtain predicted probabilities
+predicted_probabilities <- predict(generic5, type = "response")
+roc_curve <- roc(response_df$response, predicted_probabilities)
+# Plot the ROC curve
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+# Calculate and print the AUC value
+auc(roc_curve)  # 0.9279
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
