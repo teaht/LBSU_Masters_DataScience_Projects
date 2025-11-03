@@ -1,0 +1,84 @@
+---
+title: "Final_530"
+author: "Teah Thies"
+date: "2023-12-16"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Estimations}
+# all
+x=c(279, 311, 140, 31, 91, 15, 11, 10, 8)
+mean(x)   # 99.56
+CF=(sum(x)^2)/9
+CF        # 89201.78
+
+# treatments - microwave time
+i130=c(279, 311, 140)
+sum(i130)    # 730
+i230=c(31, 91, 15)
+sum(i230)    # 137
+i330=c(11, 10, 8)
+sum(i330)    # 29
+
+# blocks - microwave
+j1=c(279, 31, 11)     # lakely's microwave
+sum(j1)     # 321
+j2=c(311, 91, 10)     # teah's microwave 
+sum(j2)     # 412
+j3=c(140, 15, 8)      # teah's 2nd microwave 
+sum(j3)     # 163
+```
+
+
+```{r Sum of Squares}
+# Total
+SST=sum(x^2)-CF
+SST       # 114712.2
+
+# treatment - microwave time
+SSTRT=(1/3)*(sum(i130)^2+sum(i230)^2+sum(i330)^2)-CF
+SSTRT     # 94968.22
+
+# block - microwave
+SSBLOCK=(1/3)*(sum(j1)^2+sum(j2)^2+sum(j3)^2)-CF
+SSBLOCK    # 10582.89
+
+# error
+SSE=SST-SSTRT-SSBLOCK
+SSE         # 9161.111
+```
+
+```{r Mean Square}
+MSTRT = SSTRT/2
+MSTRT     # 47484.11
+
+MSBLOCK = SSBLOCK/2
+MSBLOCK   # 5291.444
+
+MSE = SSE/4
+MSE        # 2290.278
+```
+
+```{r FSTAT}
+F0 = 6.94
+
+FTRT = MSTRT/MSE
+FTRT      # 20.7329
+
+FBLOCK = MSBLOCK/MSE
+FBLOCK    # 2.310394
+```
+
+
+Microwave time is significant
+Microwave is not significant
+
+
+
+
+
+
