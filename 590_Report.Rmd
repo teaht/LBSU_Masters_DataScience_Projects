@@ -1,0 +1,257 @@
+---
+title: "590_Report"
+author: "Teah Thies"
+date: "2024-05-06"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Import Data
+
+```{r Import Data}
+library(readxl)
+data <- read_excel("~/Desktop/pharynx.xls")
+```
+
+## Figure 1 - Pie Charts
+
+```{r}
+patient_data <- data[, c("Inst", "Sex", "Tx")]
+
+## pie chart 
+# Function to create pie chart for each group
+create_pie_chart <- function(data, variable, title) {
+  color_palette <- rainbow(length(unique(data[[variable]])))
+  variable_counts <- table(data[[variable]])
+  pie(variable_counts, labels = paste(names(variable_counts), "-", variable_counts), 
+      col = color_palette,
+      main = title)
+}
+
+par(mfrow=c(1, 3))  
+create_pie_chart(patient_data, "Inst", "Institution Distribution")
+create_pie_chart(patient_data, "Sex", "Gender Distribution")
+create_pie_chart(patient_data, "Tx", "Treatment Distribution")
+```
+
+## Figure 2 - Age Histogram
+
+```{r}
+hist(data$Age, 
+     col = "purple",   
+     main = "Age of Diagnosis",  
+     xlab = "Age",          
+     ylab = "Frequency",  
+     border = "black",     
+     breaks = 10) 
+```
+
+
+## Figure 3 - Censorship Bar Graph
+
+```{r}
+library(ggplot2)
+
+# Count occurrences of 0 and 1 in the 'Time' column
+counts <- table(data$Status)
+
+# Convert counts to a data frame
+counts_df <- as.data.frame(counts)
+names(counts_df) <- c("Censor", "Count")
+
+# Create the bar graph
+ggplot(counts_df, aes(x = factor(Censor), y = Count)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.5) +
+  geom_text(aes(label = Count), vjust = -0.5) +
+  labs(x = "Censor", y = "Count", title = "Observations of 0 and 1") +
+  theme_minimal()
+```
+
+## Figure 4 - Time Box Plot and Summarry
+
+```{r}
+boxplot(data$Time, 
+        main = "Boxplot of Time Variable",
+        xlab = "Time (Days)",
+        ylab = "Time")
+
+summary(data$Time)
+```
+
+
+## Figure 5 - Kaplan Meier Curve and Medians
+
+```{r}
+library(survival)
+library(survminer)
+
+# Fit survival models for each treatment group
+t1 <- survfit(Surv(Time, Status) ~ Tx, data = subset(data, Tx == 1))
+t2 <- survfit(Surv(Time, Status) ~ Tx, data = subset(data, Tx == 2))
+
+# Create Kaplan-Meier plots for each treatment group
+ggsurvplot(t1, data = data, 
+           xlab = "Time (days)", ylab = "Probability of Survival",
+           title = "Kaplan-Meier Survival Curve (Treatment 1)")
+
+ggsurvplot(t2, data = data, 
+           xlab = "Time (days)", ylab = "Probability of Survival",
+           title = "Kaplan-Meier Survival Curve (Treatment 2)")
+
+surv_median(t1)
+surv_median(t2)
+```
+
+## Figure 6 - Confidence Interval for 1st Year: Greenwood's Variance
+
+```{r}
+## Tx=1
+summary(t1, times = 12*30)   #### (0.548, 0.739)
+
+## Tx=2
+summary(t2, times = 12*30)   #### (0.439, 0.643)
+```
+
+## Figure 7 - Confidence Interval: log-log Transformation 
+
+Note that $Var_G\hat{S}(t) \times \hat{S}(t)^2= \sum_{j: t_{(j)} \leq t} \left(1 - \frac{d_j}{n_j}\right)$
+
+```{r}
+## s(t=360) estimate
+st1=summary(t1, times = 12*30)$surv
+st2=summary(t2, times = 12*30)$surv
+
+## standard error
+se1=((1/(log10(st1))^2)*(0.0483^2/st1^2))^(1/2)  
+## where (0.0483^2/st1^2))^(1/2) is 
+se2=((1/(log10(st2))^2)*(0.0516^2/st2^2))^(1/2)
+
+## A
+A1=1.96*se1
+A2=1.96*se2
+
+## log-log transformation
+lb1=st1^(exp(A1))
+ub1=st1^(exp(-A1))
+
+lb2=st2^(exp(A2))
+ub2=st2^(exp(-A2))
+
+lb1
+ub1
+
+lb2
+ub2
+
+```
+
+## Figure 8 - Confidence Interval for 2nd Year: Greenwood's Variance
+
+```{r}
+## Tx=1
+summary(t1, times = 24*30)   #### (0.305, 0.5)
+
+## Tx=2
+summary(t2, times = 24*30)   #### (0.2, 0.392)
+```
+
+## Figure 9 - Confidence Interval: log-log Transformation 
+
+Note that $Var_G\hat{S}(t) \times \hat{S}(t)^2= \sum_{j: t_{(j)} \leq t} \left(1 - \frac{d_j}{n_j}\right)$
+
+```{r}
+## s(t=360) estimate
+st1=summary(t1, times = 24*30)$surv
+st2=summary(t2, times = 24*30)$surv
+
+## standard error
+se1=((1/(log10(st1))^2)*(0.0493^2/st1^2))^(1/2)  
+## where (0.0493^2/st1^2))^(1/2) is 
+se2=((1/(log10(st2))^2)*(0.0516^2/st2^2))^(1/2)
+
+## A
+A1=1.96*se1
+A2=1.96*se2
+
+## log-log transformation
+lb1=st1^(exp(A1))
+ub1=st1^(exp(-A1))
+
+lb2=st2^(exp(A2))
+ub2=st2^(exp(-A2))
+
+lb1
+ub1
+
+lb2
+ub2
+
+```
+
+## Cox Proportional Hazard Model 
+
+```{r}
+cox <- coxph(Surv(Time, Status) ~ Inst+Sex+Tx+Grade+Age+Cond+Site+T_Stage+N_Stage+Entry_Dt, data=data)
+
+## test proportional assumption 
+cox.zph(cox)
+
+cox_strat <- coxph(Surv(Time, Status) ~ Inst+Sex+Tx+Grade+strata(Age)+Cond+Site+T_Stage+N_Stage+Entry_Dt, data=data)
+
+cox.zph(cox_strat)
+
+## summary of model 
+summary(cox_strat)
+
+
+```
+
+
+
+
+
+
+
+
+## significant Cox model 
+
+```{r}
+final <- coxph(Surv(Time, Status) ~ Cond, data=data)
+
+## test proportional assumption 
+cox.zph(final)
+
+plot(cox.zph(final))
+
+## summary of model 
+summary(final)
+
+
+```
+
+## significant cox model with removed values 0 and 9
+```{r}
+data2 <- data[data$Cond != 0 & data$Cond != 9, ]
+
+mod <- coxph(Surv(Time, Status) ~ Cond, data=data2)
+
+## test proportional assumption 
+cox.zph(mod)
+
+plot(cox.zph(mod))
+
+## summary of model 
+summary(mod)
+
+```
+
+
+
+
+
+
+
+
