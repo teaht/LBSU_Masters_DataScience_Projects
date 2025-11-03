@@ -1,0 +1,319 @@
+---
+title: "Final Project"
+author: "Teah Thies"
+date: "2024-05-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Data
+
+```{r}
+library(readr)
+df <- read_csv("~/Desktop/clean_df.csv", show_col_types = FALSE)
+ncol(df)
+```
+
+## Data Visualization - Wound Score
+
+```{r}
+wound_data <- df[, c("WoundScore_Appearance", "WoundScore_Size", "WoundScore_Perfusion", "WoundScore_Total")]
+```
+
+```{r}
+library(ggplot2)
+library(magrittr)
+
+## WoundScore_Appearance
+aggregate(WoundScore_Total ~ WoundScore_Appearance, wound_data, mean) %>%
+  ggplot(aes(x = WoundScore_Appearance, y = WoundScore_Total)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  labs(title = "Average WoundScore_Total by WoundScore_Appearance",
+       x = "WoundScore_Appearance",
+       y = "Average WoundScore_Total")
+```
+
+```{r}
+## WoundScore_Size
+aggregate(WoundScore_Total ~ WoundScore_Size, wound_data, mean) %>%
+  ggplot(aes(x = WoundScore_Size, y = WoundScore_Total)) +
+  geom_bar(stat = "identity", fill = "red") +
+  labs(title = "Average WoundScore_Total by WoundScore_Size",
+       x = "WoundScore_Size",
+       y = "Average WoundScore_Total")
+```
+
+```{r}
+## WoundScore_Perfusion
+aggregate(WoundScore_Total ~ WoundScore_Perfusion, wound_data, mean) %>%
+  ggplot(aes(x = WoundScore_Perfusion, y = WoundScore_Total)) +
+  geom_bar(stat = "identity", fill = "green") +
+  labs(title = "Average WoundScore_Total by WoundScore_Perfusion",
+       x = "WoundScore_Perfusion",
+       y = "Average WoundScore_Total")
+```
+
+## Data Visualization - Patient
+
+```{r}
+patient_data <- df[, c("Age", "Ethnicity", "Gender")]
+```
+
+```{r}
+# Function to create pie chart for each group
+create_pie_chart <- function(data, variable, title) {
+  color_palette <- rainbow(length(unique(data[[variable]])))
+  variable_counts <- table(data[[variable]])
+  pie(variable_counts, labels = paste(names(variable_counts), "-", variable_counts), 
+      col = color_palette,
+      main = title)
+}
+
+# Create pie charts for each variable
+par(mfrow=c(1, 2))  # Arrange plots in one row with three columns
+create_pie_chart(patient_data, "Ethnicity", "Ethnicity Distribution")
+create_pie_chart(patient_data, "Gender", "Gender Distribution")
+```
+
+```{r}
+## histogram for Age
+hist(patient_data$Age, 
+     col = "skyblue",   
+     main = "Age Distribution",  
+     xlab = "Age",          
+     ylab = "Frequency",  
+     border = "black",     
+     breaks = 10)          
+```
+
+```{r}
+hist(df$GoalScore_Compliance, 
+     col = "purple",   
+     main = "GoalScore_Compliance",  
+     xlab = "Score",          
+     ylab = "Frequency",  
+     border = "black",     
+     breaks = 10) 
+
+hist(df$GoalScore_Total, 
+     col = "orange",   
+     main = "GoalScore_Motivation",  
+     xlab = "Score",          
+     ylab = "Frequency",  
+     border = "black",     
+     breaks = 10)
+
+hist(df$GoalScore_Comprehension, 
+     col = "purple",   
+     main = "GoalScore_Comprehension",  
+     xlab = "Score",          
+     ylab = "Frequency",  
+     border = "black",     
+     breaks = 10)
+```
+
+## Cohen's Kappa
+
+```{r}
+cohen_data <- df[, c("Wagners_Grade", "UTSA_Lavery_Grade")]
+
+## vales in wagners grade
+unique(cohen_data$Wagners_Grade)   # 1, 2, 3, 4, 5, NA
+
+## vales in UTSA_Lavery_Grade
+unique(cohen_data$UTSA_Lavery_Grade)  # I, II, III, NA
+```
+
+## Counts
+
+```{r}
+## Wagner Counts
+count1_wag <- sum(cohen_data$Wagners_Grade == 1, na.rm = TRUE) #18
+count2_wag <- sum(cohen_data$Wagners_Grade == 2, na.rm = TRUE) #26
+count3_wag <- sum(cohen_data$Wagners_Grade == 3, na.rm = TRUE) #22
+count4_wag <- sum(cohen_data$Wagners_Grade == 4, na.rm = TRUE) #14
+count5_wag <- sum(cohen_data$Wagners_Grade == 5, na.rm = TRUE) #4
+
+## Get levels the same
+## Change I
+cohen_data$UTSA_Lavery_Grade <- ifelse(cohen_data$UTSA_Lavery_Grade == "I", 1, cohen_data$UTSA_Lavery_Grade)
+# Change II
+cohen_data$UTSA_Lavery_Grade <- ifelse(cohen_data$UTSA_Lavery_Grade == "II", 2, cohen_data$UTSA_Lavery_Grade)
+## Change III
+cohen_data$UTSA_Lavery_Grade <- ifelse(cohen_data$UTSA_Lavery_Grade == "III", 3, cohen_data$UTSA_Lavery_Grade)
+
+## UTSA Counts
+countI_utsa <- sum(cohen_data$UTSA_Lavery_Grade == 1, na.rm = TRUE) #25
+countII_utsa <- sum(cohen_data$UTSA_Lavery_Grade == 2, na.rm = TRUE) #18
+countIII_utsa <- sum(cohen_data$UTSA_Lavery_Grade == 3, na.rm = TRUE) #41
+
+## Probability that both match
+#column totals
+
+#probability 
+p1wag=count1_wag/nrow(cohen_data)
+p1utsa=countI_utsa/nrow(cohen_data)
+p2wag=count2_wag/nrow(cohen_data)
+p2utsa=countII_utsa/nrow(cohen_data)
+p3wag=count3_wag/nrow(cohen_data)
+p3utsa=countIII_utsa/nrow(cohen_data)
+
+p1both=p1wag*p1utsa
+p2both=p2wag*p2utsa
+p3both=p3wag*p3utsa
+
+p4=0
+p5=0
+
+## How many rows match
+total_matching_rows <- sum(cohen_data$Wagners_Grade == cohen_data$UTSA_Lavery_Grade, 
+                           na.rm = TRUE)  #47
+
+## contingecny table values 
+sum(cohen_data$Wagners_Grade == 1 & cohen_data$UTSA_Lavery_Grade == 1, na.rm=TRUE) #17
+
+
+
+```
+
+## Contengiency Table 
+
+```{r Weighted Kappa}
+## contingecny table values 
+sum(cohen_data$Wagners_Grade == 5 & cohen_data$UTSA_Lavery_Grade == 3, na.rm=TRUE)
+
+table = as.table(rbind(
+  c(17, 1, 0, 0, 0), c(2, 12, 12, 0, 0), c(0, 4, 18, 0, 0), 
+  c(4, 1, 9, 0, 0), c(2, 0, 2, 0, 0)))
+categories = c("1", "2", "3",
+                "4", "5")
+dimnames(table) = list(Wagner = categories, UTSA = categories)
+```
+
+## Compute Kappa for two raters
+```{r}
+
+library(vcd)
+(res.table = Kappa(table))
+
+#Confidence interval
+confint(res.table)
+
+
+```
+
+## Kappas equations
+
+$P_0=\sum_{i=1}^{k} P_{ii}$
+$P_e=\sum_{i=1}^{k} P_{i} P_{i}$
+$k=\frac{P_0-P_e}{1-P_e}$
+
+Here, weighted version is for ordinal data.
+
+In our example, the Cohen’s kappa (k) = 0.651, which represents a fair to good strength of agreement according to Fleiss e al. (2003) classification. This is confirmed by the obtained p-value (p < 0.0001), indicating that our calculated kappa is significantly different from zero.
+
+
+## Reserach Question
+```{r Age NO CORR on wound}
+####### AGE
+age_wound <- df[, c("Age", "WoundScore_Total")]
+    
+
+# Using Spearman:
+cor.test(age_wound$Age, age_wound$WoundScore_Total, alternative="greater",
+         method="spearman", exact=T)
+
+# Using Kendall:
+cor.test(age_wound$WoundScore_Total, age_wound$Age, alternative="two.sided", 
+         method="kendall", exact=T)
+
+jonckheere.test(age_wound$WoundScore_Total,age_wound$Age,alternative="two.sided")
+```
+
+```{r in out NO Corr on Wound}
+########## IN OUT PATIENT
+inout_wound <- df[, c("In_Out_patient", "WoundScore_Total")]
+
+jonckheere.test(age_wound$WoundScore_Total,age_wound$Age,alternative="two.sided")
+```
+
+```{r}
+
+wound_goal<- df[, c("GoalScore_Total", "WoundScore_Total")]
+
+# Using Pearson:
+cor.test(wound_goal$GoalScore_Total, wound_goal$WoundScore_Total, alternative="greater", 
+         method="pearson", exact=T)
+
+# jonckheere.test
+jonckheere.test(goal$GoalScore_Motivation, goal$GoalScore_Total, alternative="increasing")
+# Using Spearman:
+cor.test(goal$GoalScore_Motivation, goal$GoalScore_Total, alternative="greater",
+         method="spearman", exact=T)
+# Using kendall:
+cor.test(goal$GoalScore_Motivation, goal$GoalScore_Total, alternative="greater", 
+         method="kendall", exact=T)
+
+```
+
+
+```{r}
+goal <- df[, c("GoalScore_Motivation", "GoalScore_Comprehension", "GoalScore_Compliance", "GoalScore_Support", "GoalScore_Insight", "GoalScore_Total")]
+######### MOTIVATION
+cor.test(goal$GoalScore_Motivation, goal$GoalScore_Total, alternative="greater", 
+         method="pearson", exact=T)
+######### CONPREHENSION
+cor.test(goal$GoalScore_Comprehension, goal$GoalScore_Total, alternative="greater",
+         method="pearson", exact=T)
+######### Compliance
+cor.test(goal$GoalScore_Compliance, goal$GoalScore_Total, alternative="greater", 
+         method="pea", exact=T)
+######### GoalScore_Support
+cor.test(goal$GoalScore_Support, goal$GoalScore_Total, alternative="two.sided", 
+         method="pearson", exact=T)
+######### GoalScore_Insight
+cor.test(goal$GoalScore_Insight, goal$GoalScore_Total, alternative="greater", 
+         method="pearson", exact=T)
+```
+
+```{r}
+## base model
+df <- df[, c("GoalScore_Motivation", "GoalScore_Comprehension", "GoalScore_Compliance", "GoalScore_Insight", "WoundScore_Total")]
+## non parametric regression
+library(mgcv)
+## Fit non-parametric regression model
+model <- gam(WoundScore_Total ~ GoalScore_Motivation+GoalScore_Comprehension+GoalScore_Compliance+GoalScore_Insight, data=df)
+## Print model summary
+summary(model)
+```
+
+```{r}
+# single predictor 
+model2 <- gam(WoundScore_Total ~ GoalScore_Motivation, data=df)
+summary(model2)
+model3 <- gam(WoundScore_Total ~ GoalScore_Comprehension, data=df)
+summary(model3)
+model4 <- gam(WoundScore_Total ~ GoalScore_Compliance, data=df)
+summary(model4)
+model5 <- gam(WoundScore_Total ~ GoalScore_Insight, data=df)
+summary(model5)
+```
+
+```{r}
+# AIC
+AIC(model2)
+AIC(model3)
+AIC(model4)
+AIC(model5)
+```
+
+
+
+
+
+
+
+
