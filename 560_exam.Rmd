@@ -1,0 +1,134 @@
+---
+title: "560_Exam"
+author: "Teah Thies"
+date: "2024-03-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Variable Description:  
+()_S came from systemic data     
+()_L came from local data  
+
+```{r Load Data}
+library(readxl)
+df <- read_excel("~/Desktop/exam560.xlsx")
+colnames(df)
+
+## matrix form for regression
+library(magrittr)
+df2 <- df %>% as.data.frame()
+View(df2)
+```
+
+Within the systemic data, we can compare the lifestyles of each patient. Does exercise, diet, and smoking help get the patient a better goal score? Or is it a combination of them all together? These questions could potentially influence the patients to make better choices on their day-to day basis and can start immediately. We can report these findings to the doctor to share with the patients. 
+
+Exercise
+```{r Exercise non-parametric regression}
+## non parametric regression
+library(mgcv)
+
+## Fit non-parametric regression model
+model <- gam(goal_scr ~ exercise_S, data = df2)
+
+## Print model summary
+summary(model)
+```
+```{r Exercise Correlation}
+## calculate rank correlation
+goal_score = c(10,6,9,4.5,3,8.5,10,8,9,7,10,4.5,1,7,7.5)
+exercise = c(0,-1,1,-1,-1,0,-1,1,-1,0,1,-1,-1,-1,0)
+
+### Kendall's tau: how to handle ties (it subtracts the ties and adjusts)
+### will give warning
+cor.test(goal_score, exercise, alternative="greater", method="kendall", exact=T)
+```
+Looking at the effects and correlation between exercise and goal score, we can see that jumping 1 exercise level can increase the patients goal score by about 1.8 using regression. Additionally, there is a positive correlation of 0.48 between exercise and goal score using Kendall's tau. Both tests were significant with p-value<alpha=0.05.
+
+
+Diet
+```{r Diet non-parametric regression}
+## Fit non-parametric regression model
+model2 <- gam(goal_scr ~ diet_S, data = df2)
+## Print model summary
+summary(model2)
+```
+
+```{r Diet Correlation}
+## calculate rank correlation
+diet = c(0,-1,1,-1,-1,1,0,1,-1,-1,1,-1,-1,-1,1)
+
+### Kendall's tau: how to handle ties (it subtracts the ties and adjusts)
+### will give warning
+cor.test(goal_score, diet, alternative="greater", method="kendall", exact=T)
+```
+
+Smoking
+```{r Smoking non-parametric regression}
+## Fit non-parametric regression model
+model3 <- gam(goal_scr ~ smoking_S, data = df2)
+## Print model summary
+summary(model3)
+```
+
+```{r Smoking Correlation}
+## calculate rank correlation
+smok = c(1,1,-1,-1,0,1,1,0,1,1,-1,1,0,0,1)
+
+### Kendall's tau: how to handle ties (it subtracts the ties and adjusts)
+### will give warning
+cor.test(goal_score, smok, alternative="greater", method="kendall", exact=T)
+
+cor.test(goal_score, smok, alternative="greater", method="pearson", exact=T)
+
+
+```
+
+
+All of the Above
+```{r All non-parametric regression}
+## Fit non-parametric regression model
+model4 <- gam(goal_scr ~ exercise_S + diet_S, data = df2)
+## Print model summary
+summary(model4)
+
+# not significant so lets check correlation
+
+### Kendall's tau: how to handle ties (it subtracts the ties and adjusts)
+### will give warning
+cor.test(diet, exercise, alternative="greater", method="kendall", exact=T)
+```
+
+Regression All
+
+```{r}
+model5 <- gam(goal_scr ~ wound_scr + diet_S + smoking_S + meds_S + off_loading_L + skin_toe_care_L + F_U_app_L, data = df2)
+summary(model5)
+
+correlation <- cor(df2)
+
+# Set correlation threshold (e.g., 0.7 for strong correlation)
+thresh <- 0.7
+
+# Find highly correlated values
+high_cor <- which(abs(correlation) > thresh & correlation != 1, arr.ind = TRUE)
+
+# Print highly correlated values
+for (i in 1:nrow(high_cor)) {
+  row_index <- high_cor[i, 1]
+  col_index <- high_cor[i, 2]
+  cat("Variables", rownames(correlation)[row_index], "and", colnames(correlation)[col_index], "have a correlation of", correlation[row_index, col_index], "\n")
+}
+```
+
+
+
+
+
+
+
+
+
